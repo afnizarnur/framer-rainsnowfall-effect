@@ -1,52 +1,78 @@
-# p5.js Configuration
-canvas = new Layer
-	width: screen.width
-	height: main.height
-	parent: main
+main.html = "<canvas id='container'></canvas>"
+
+class SnowEffect
+	constructor: (elm, @count, @size, @speed) ->
+		@canvas = {elm: elm}
+		window.addEventListener 'resize', @init
+		@init()
 	
-canvas.html = "<div id='canvas'></div>"
-
-quantity = 20
-xPosition = []
-yPosition = []
-flakeSize = []
-direction = []
-minFlakeSize = 1
-maxFlakeSize = 5
-snowColor = 255
-
-weatherEffect = new p5 (p) ->
-	drawSnow = ->
-		i = 0
-		while i < xPosition.length
-			p.ellipse(xPosition[i], yPosition[i], flakeSize[i], flakeSize[i])
+	init: =>
+		@setSize()
+		@draw()
+	
+	setSize: ->
+		@canvas.width = Screen.width
+		@canvas.height = main.height
 			
-			if direction[i] == 0
-				xPosition[i] += p.map(flakeSize[i], minFlakeSize, maxFlakeSize, .1, .5)
-			else
-				xPosition[i] -= p.map(flakeSize[i], minFlakeSize, maxFlakeSize, .1, .5)
-			
-			yPosition[i] += flakeSize[i] + direction[i]
-			
-			if xPosition[i] > p.width + flakeSize[i] or xPosition[i] < -flakeSize[i] or yPosition[i] > p.height + flakeSize[i]
-				xPosition[i] = p.random(0, p.width)
-				yPosition[i] = -flakeSize[i]
-			i++
-		return
+	draw: ->
+		if @ticker
+			clearInterval(@ticker)
+			@ticker = null        
+		@p = []
+		@context = @canvas.elm.getContext('2d')
+		@canvas.elm.width = Screen.width
+		@canvas.elm.height = main.height
+		@play()
 
-	p.setup = ->
-		effect_canvas = p.createCanvas(canvas.width, canvas.height)
-		effect_canvas.parent("canvas")
-		p.frameRate(30);
-		p.noStroke();
-		i = 0
-		while i < quantity
-			flakeSize[i] = p.round(p.random(minFlakeSize, maxFlakeSize))
-			xPosition[i] = p.random(0, p.width)
-			yPosition[i] = p.random(0, p.height)
-			direction[i] = p.round(p.random(0, 1))
-			i++
+	tick: ->
+		@context.clearRect 0, 0, Screen.width, main.height
+		@makeParticle() while @p.length < @count
 		
-	p.draw = ->
-		drawSnow()
-				
+		for par in @p
+			par.x += Math.cos(par.sway += 0.1)
+			par.y += par.yVelocity
+		
+		if par.yVelocity > 0 && par.y > @canvas.height + par.size
+			par.y = -par.size
+			par.x = Math.random() * Screen.width
+		else if par.yVelocity < 0 && par.y < -par.size
+			par.y = main.height + par.size
+			par.x = Math.random() * Screen.width
+		
+		@context.fillStyle = 'rgba(255,255,255,' + par.opacity + ')'
+		@context.beginPath()
+		@context.arc par.x, par.y, par.size, 0, Math.PI * 2, true
+		@context.closePath()
+		@context.fill()
+
+	makeParticle: ->
+		@p.push
+			x: Utils.randomNumber(0, Screen.width)
+			y: Utils.randomNumber(0, Screen.height)
+			yVelocity: Utils.randomNumber(2, 8) * @speed
+			size: Utils.randomNumber(2, 5) * @size
+			opacity: Utils.randomNumber(0.5, 1)
+			sway:  Math.random() * 20
+
+	play: ->
+		@ticker = setInterval =>
+			@tick()
+		, 30
+  
+	togglePlay: ->
+		if @ticker
+			clearInterval(@ticker)
+			@ticker = null
+		else @play()
+
+	adjust: (prop, val) ->
+		@[prop] = val
+		@draw()
+	
+	randomNum: (min, max) ->
+		Math.random() * (max - min) + min
+		
+elm =  document.getElementById('container')
+if elm then window.snow = new SnowEffect(elm, 500, 1, .8)
+	
+		
